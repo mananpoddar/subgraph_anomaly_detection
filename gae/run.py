@@ -15,7 +15,7 @@ flags.DEFINE_float('weight_decay', 0., 'Weight for L2 loss on embedding matrix.'
 flags.DEFINE_float('dropout', 0., 'Dropout rate (1 - keep probability).')
 flags.DEFINE_integer('features', 1, 'Whether to use features (1) or not (0).')
 flags.DEFINE_integer('seed', 50, 'seed for fixing the results.')
-flags.DEFINE_integer('iterations', 300, 'number of iterations.')
+flags.DEFINE_integer('iterations', 30, 'number of iterations.')
 flags.DEFINE_float('alpha', 0.8, 'balance parameter')
 
 

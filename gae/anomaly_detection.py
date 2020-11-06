@@ -10,7 +10,9 @@ import numpy as np
 from input_data import format_data
 from sklearn.metrics import roc_auc_score, average_precision_score
 import pandas as pd
-
+from input_data import load_data
+import networkx as nx
+import itertools
 # Settings
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -49,19 +51,57 @@ class AnomalyDetectionRunner():
             if epoch % 10 == 0:
                 print("Epoch:", '%04d' % (epoch), "train_loss=", "{:.5f}".format(reconstruction_loss))
 
-            if epoch % 100 == 0:
-                y_true = [label[0] for label in feas['labels']]
-                auc = roc_auc_score(y_true, reconstruction_errors)
-                print(auc)
+            # if epoch % 100 == 0:
+            y_true = [label[0] for label in feas['labels']]
+            auc = roc_auc_score(y_true, reconstruction_errors)
+            # print("reconstruction_errors")
+            # print(reconstruction_errors)
+            # print("ytrue")
+            # print(y_true)
 
-        sorted_errors = np.argsort(-reconstruction_errors, axis=0)
+        print("reconstruction_errors")
+        print(reconstruction_errors.shape)
+        print(reconstruction_errors)
+        
+        adj, features, labels = load_data(self.data_name)
+        print("adjacency")
+        print(adj.shape)
+        # print(adj)
+        G = nx.Graph(adj)
+        # print(type(G))
+        #  in G.subgraph(c) for 
+
+        subgraph_rank_list = []
+        for sub_nodes in itertools.combinations(G.nodes(),2):
+            subg = G.subgraph(sub_nodes)
+            # print("subgraph")
+            # print(subg.nodes)
+            if nx.is_connected(subg):
+                subgraph_nodes = subg.nodes
+                sum = 0
+                for nodes in subgraph_nodes:
+                    sum = sum + reconstruction_errors[nodes]
+                
+                subgraph_rank_list.append((sum,subgraph_nodes))
+        
+        subgraph_rank_list.sort()
+
+        for element in subgraph_rank_list:
+            print("elements")
+            print(element[0])
+            print(element[1])
+
+
+                
+
+        sorted_errors = np.argsort(-reconstruction_errors, axis=0)  
         with open('output/{}-ranking.txt'.format(self.data_name), 'w') as f:
             for index in sorted_errors:
                 f.write("%s\n" % feas['labels'][index][0])
 
-	df = pd.DataFrame({'AD-GCA':reconstruction_errors})
-	df.to_csv('output/{}-scores.csv'.format(self.data_name), index=False, sep=',')
-	
+        df = pd.DataFrame({'AD-GCA':reconstruction_errors})
+        df.to_csv('output/{}-scores.csv'.format(self.data_name), index=False, sep=',')
+        
 
 
 

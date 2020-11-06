@@ -9,8 +9,11 @@ class OptimizerAE(object):
 
         # attribute reconstruction loss
         diff_attribute = tf.square(preds_attribute - labels_attribute)
+        # self.attribute_reconstruction_errors = [1,2,3,4,5] if 5 nodes are present - manan
         self.attribute_reconstruction_errors = tf.sqrt(tf.reduce_sum(diff_attribute, 1))
         # self.reconstruction_errors =  tf.losses.mean_squared_error(labels= labels, predictions=preds)
+        
+        # self.attribute_cost = mean of [1,2,3,4,5] - manan
         self.attribute_cost = tf.reduce_mean(self.attribute_reconstruction_errors)
 
         # structure reconstruction loss

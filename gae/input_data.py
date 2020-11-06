@@ -20,7 +20,20 @@ def load_data(data_source):
     labels = data["gnd"]
     attributes = sp.csr_matrix(data["X"])
     network = sp.lil_matrix(data["A"])
+    
+    print(type(attributes))
+    print(type(network))
 
+    print("attributes")
+    print(attributes)
+
+    #network seems to be the adjacency matrix of the graph - M
+    print("network")
+    print(network.shape)
+
+    print("labels")
+    print(labels)
+    print(labels.shape)
     return network, attributes, labels
 
 def format_data(data_source):
@@ -52,7 +65,7 @@ def format_data(data_source):
     for item in items:
         # item_name = [ k for k,v in locals().iteritems() if v == item][0]]
         item_name = retrieve_name(item)
-        feas[item_name] = item
+        feas[item_name] = item 
 
     return feas
 

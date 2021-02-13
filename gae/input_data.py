@@ -21,24 +21,25 @@ def load_data(data_source):
     attributes = sp.csr_matrix(data["X"])
     network = sp.lil_matrix(data["A"])
     
-    print(type(attributes))
-    print(type(network))
+    # print(type(attributes))
+    # print(type(network))
 
-    print("attributes")
-    print(attributes)
+    # print("attributes")
+    # print(attributes)
 
-    #network seems to be the adjacency matrix of the graph - M
-    print("network")
-    print(network.shape)
+    # #network seems to be the adjacency matrix of the graph - M
+    # print("network")
+    # print(network.shape)
 
-    print("labels")
-    print(labels)
-    print(labels.shape)
+    # print("labels")
+    # print(labels)
+    # print(labels.shape)
     return network, attributes, labels
 
-def format_data(data_source):
+def format_data(data_source, adj=None, features=None, labels=None):
 
-    adj, features, labels = load_data(data_source)
+    if adj is None:
+        adj, features, labels = load_data(data_source)
 
     # Store original adjacency matrix (without diagonal entries) for later
     # adj_orig = adj
@@ -46,6 +47,7 @@ def format_data(data_source):
     # adj_orig.eliminate_zeros()
     # adj = adj_orig
 
+    
     if FLAGS.features == 0:
         features = sp.identity(features.shape[0])  # featureless
 

@@ -47,7 +47,7 @@ def update(model, opt, sess, adj_norm, adj_label, features, placeholders, adj):
     # feed_dict.update({placeholders['dropout']: 0})
     # emb = sess.run(model.z_mean, feed_dict=feed_dict)
 
-    _, reconstruct_loss, reconstruction_errors = sess.run([opt.opt_op, opt.cost, opt.reconstruction_errors], feed_dict=feed_dict)
+    _, reconstruct_loss, reconstruction_errors, embeddings = sess.run([opt.opt_op, opt.cost, opt.reconstruction_errors, model.embeddings], feed_dict=feed_dict)
 
 
-    return reconstruction_errors, reconstruct_loss
+    return reconstruction_errors, reconstruct_loss, embeddings

@@ -13,11 +13,16 @@ import pandas as pd
 from input_data import load_data
 import networkx as nx
 import itertools
+import numpy as np
+import community as community_louvain
+from scipy import sparse
+
 # Settings
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 import matplotlib.pyplot as plt
+# import torch
 # import sklearn.metrics as metrics
 # import scikitplot as skplt
 class AnomalyDetectionRunner():
@@ -27,10 +32,15 @@ class AnomalyDetectionRunner():
         self.model = settings['model']
 
 
+    def normalise(self, value, low, high):
+        return (value-low)/(high-low)
+
     def erun(self):
         model_str = self.model
         # load data
-        feas = format_data(self.data_name)
+        print(model_str)
+
+        feas = format_data(self.data_name, None)
         print("feature number: {}".format(feas['num_features']))
 
         # Define placeholders
@@ -49,7 +59,7 @@ class AnomalyDetectionRunner():
         # Train model
         for epoch in range(1, self.iteration+1):
 
-            reconstruction_errors, reconstruction_loss = update(gcn_model, opt, sess, feas['adj_norm'], feas['adj_label'], feas['features'], placeholders, feas['adj'])
+            reconstruction_errors, reconstruction_loss, embeddings = update(gcn_model, opt, sess, feas['adj_norm'], feas['adj_label'], feas['features'], placeholders, feas['adj'])
             if epoch % 10 == 0:
                 print("Epoch:", '%04d' % (epoch), "train_loss=", "{:.5f}".format(reconstruction_loss))
 
@@ -66,13 +76,132 @@ class AnomalyDetectionRunner():
 
         y_true = [label[0] for label in feas['labels']]
 
+        sess.close()
+
         # skplt.metrics.plot_roc_curve(y_true, reconstruction_errors)
         # plt.show()
 
-        fpr, tpr, threshold = roc_curve(y_true, reconstruction_errors)
-        print("threshold : " , threshold)
-        print("false positive : ", fpr)
-        print("true positive : ", tpr)
+        # similarity matrix construction
+
+        sim_matrix = embeddings.dot(np.transpose(embeddings))
+        print("BEfore")
+        adj, features, labels = load_data(self.data_name)
+
+        #plot original graph
+        node_sizes = []
+        for i in range(len(labels)) :
+            node_sizes.append( 0.1)
+
+        plt.clf()
+        G = nx.Graph(adj)
+        pos=nx.spring_layout(G)   #G is my graph
+        nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
+        plt.savefig("original.png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1) 
+
+
+        adj=adj.toarray()
+
+        (r, c) = adj.shape
+        sim_matrix = list(sim_matrix)
+
+        G=nx.Graph()
+
+        # high = max(np.array(sim_matrix))
+        # low = min(np.array(sim_matrix))
+
+        for i in range(r):
+            for j in range(c):
+                if adj[i][j]==1:
+                    # print(adj[i][j])
+                    G.add_edge(i,j,weight=sim_matrix[i][j])
+                    sim_matrix[i][j]=sim_matrix[i][j]
+                    
+                else :
+                    sim_matrix[i][j]=0
+
+
+        print("Similarity MAtrix")
+        print(sim_matrix[0])
+
+        # fpr, tpr, threshold = roc_curve(y_true, reconstruction_errors)
+
+        partition = community_louvain.best_partition(G)
+        print(partition)
+
+        # Making Reduced Graph
+
+        nodes = max(partition.values())+1
+        new_adj = np.zeros((nodes,nodes))
+        print(type(features))
+        features=features.toarray()
+        (a,col) = features.shape
+        new_features = list()
+
+        # for node, partnum in partition.items():
+        #     partition[node] = partition[node]
+        
+        
+
+        for i in range(r):
+            for j in range(c):
+                if adj[i][j]==1 and partition[i]!=partition[j]:
+                    new_adj[partition[i]][partition[j]]=1
+
+        feature_dict = dict()
+        for node, partnum in partition.items():
+            if partnum not in feature_dict:
+                feature_dict[partnum] = list(features[node])
+            else:
+                for i in range(len(list(features[node]))):
+                    # print("DICT")
+                    # print(feature_dict[partnum][i])
+                    # print("FEAT")
+                    # print(features[node][i])
+                    feature_dict[partnum][i] = max(feature_dict[partnum][i],features[node][i]) 
+        
+        for i in range(nodes):
+            new_features.append([])
+        for i in range(nodes):
+            new_features[i] = list(feature_dict[i])
+ 
+        new_adj=sparse.csr_matrix(new_adj) 
+        new_features = sparse.csr_matrix(new_features)       
+        new_labels = sparse.csr_matrix(np.zeros(nodes))
+        feas =  format_data(self.data_name, new_adj, new_features, new_labels)
+
+        #plot shrink graph
+        # clearing the current plot 
+        plt.clf() 
+        G1 = nx.Graph(new_adj)
+        nx.draw(G1, with_labels = True) 
+        plt.savefig("shrink.png")
+
+        print("feature number: {}".format(feas['num_features']))
+
+
+        # construct model
+        gcn_model = get_model(model_str, placeholders, feas['num_features'], feas['num_nodes'], feas['features_nonzero'])
+
+        # Optimizer
+        opt = get_optimizer(model_str, gcn_model, placeholders, feas['num_nodes'], FLAGS.alpha)
+
+        sess = tf.Session()
+        sess.run(tf.global_variables_initializer())
+
+
+        # Train model
+        for epoch in range(1, self.iteration+1):
+
+            reconstruction_errors, reconstruction_loss, embeddings = update(gcn_model, opt, sess, feas['adj_norm'], feas['adj_label'], feas['features'], placeholders, feas['adj'])
+            if epoch % 10 == 0:
+                print("Epoch:", '%04d' % (epoch), "train_loss=", "{:.5f}".format(reconstruction_loss))
+
+        print(reconstruction_errors)            
+
+
+        # print("threshold : " , threshold)
+        # print("false positive : ", fpr)
+        # print("true positive : ", tpr)
 
         # plt.title('Receiver Operating Characteristic')
         # plt.plot(fpr, tpr, 'b')
@@ -87,139 +216,139 @@ class AnomalyDetectionRunner():
 
 
         # plot reconstruction_errors vs y_true
-        print("plotting started..")
-        print("1 count")
-        print(y_true.count(1))
+        # print("plotting started..")
+        # print("1 count")
+        # print(y_true.count(1))
         num_count = 0
         mean = 0
         for num in reconstruction_errors:
-            if num > 200000:
-                num_count = num_count + 1
+            # if num > 200000:
+            #     num_count = num_count + 1
             mean = mean + num 
         
         mean = (mean/len(reconstruction_errors))
         # mean = 170000 
         false_count = 0
         for num in reconstruction_errors:
-            if num > mean and mean < 170000:
-                false_count = false_count + 1
+            if num > mean:
+                num_count = num_count + 1
           
-        print("Falst count " + str(false_count))
+        print("Num count " + str(num_count))
         
 
-        print("mean " + str(mean))
-        right = 0
-        for i in range(len(reconstruction_errors)):
-            if reconstruction_errors[i] >= mean and y_true[i]==1:
-                right = right+1
-            elif reconstruction_errors[i] < mean and y_true[i]==0:
-                right = right + 1
-        print("right" + str(right))
-        print("length" + str(len(reconstruction_errors)))
-        print(right/len(reconstruction_errors))
+        # print("mean " + str(mean))
+        # right = 0
+        # for i in range(len(reconstruction_errors)):
+        #     if reconstruction_errors[i] >= mean and y_true[i]==1:
+        #         right = right+1
+        #     elif reconstruction_errors[i] < mean and y_true[i]==0:
+        #         right = right + 1
+        # print("right" + str(right))
+        # print("length" + str(len(reconstruction_errors)))
+        # print(right/len(reconstruction_errors))
 
 
 
-        # plt.plot(reconstruction_errors,y_true,"ro")
+        # # plt.plot(reconstruction_errors,y_true,"ro")
+        # # plt.show()
+
+        # print("plotting done..")
+
+
+        # print("reconstruction_errors")
+        # print(reconstruction_errors.shape)
+        # # reconstruction_errors = [1, 2, 3, 4, 5]
+        # print(reconstruction_errors)
+        
+        # # normalise reconstruction_errors
+        # new_reconstruction_error = []
+        # for ele in reconstruction_errors:
+        #     new_reconstruction_error.append(100000*( (ele-min(reconstruction_errors))/(max(reconstruction_errors)-min(reconstruction_errors))))
+        
+        # # denormalise 800
+        # denormalised_threshold = (450*( max(reconstruction_errors)-min(reconstruction_errors) )) / 1000  + min(reconstruction_errors)
+        # print("deo thre")
+        # print(denormalised_threshold)
+
+        # right = 0
+        # for i in range(len(reconstruction_errors)):
+        #     if reconstruction_errors[i] >= denormalised_threshold and y_true[i]==1:
+        #         right = right+1
+        #     elif reconstruction_errors[i] < denormalised_threshold and y_true[i]==0:
+        #         right = right + 1
+        # print("right" + str(right))
+        # print("length" + str(len(reconstruction_errors)))
+        # print("deo score:")
+        # print(right/len(reconstruction_errors))
+
+        # # get false positive/negative and 1 pe 1
+        # false_positive = 0
+        # false_negative = 0
+        # true_positive = 0
+        # denormalised_threshold = 170000
+        # for i in range(len(reconstruction_errors)):
+        #     # false positive
+        #     if reconstruction_errors[i] >= denormalised_threshold and y_true[i]==0:
+        #         false_positive = false_positive+1
+        #     # false negative
+        #     elif reconstruction_errors[i] < denormalised_threshold and y_true[i]==1:
+        #         false_negative = false_negative + 1
+        #     # true positive
+        #     elif reconstruction_errors[i] >= denormalised_threshold and y_true[i]==1:
+        #         true_positive = true_positive + 1
+
+        # print("false positive "+ str(false_positive) + "false negative "+str(false_negative) + "true postive "+ str(true_positive) )
+
+
+
+        # histogram = dict()
+        # norm_value = 150000
+        # for ele in reconstruction_errors:
+        #     ele = ele - norm_value
+        #     if ele not in histogram and (ele >=0 and ele <=10000) :
+        #         histogram[ele] = 0
+        #     if ele >= 0 and ele <= 10000:
+        #         histogram[ele] = histogram[ele]+1
+        # print("dictionary")
+        # print(histogram)
+        # # plt.hist(histogram)
+        # plt.bar(histogram.keys(), histogram.values(), 1, color='g')
+
         # plt.show()
 
-        print("plotting done..")
-
-
-        print("reconstruction_errors")
-        print(reconstruction_errors.shape)
-        # reconstruction_errors = [1, 2, 3, 4, 5]
-        print(reconstruction_errors)
-        
-        # normalise reconstruction_errors
-        new_reconstruction_error = []
-        for ele in reconstruction_errors:
-            new_reconstruction_error.append(100000*( (ele-min(reconstruction_errors))/(max(reconstruction_errors)-min(reconstruction_errors))))
-        
-        # denormalise 800
-        denormalised_threshold = (450*( max(reconstruction_errors)-min(reconstruction_errors) )) / 1000  + min(reconstruction_errors)
-        print("deo thre")
-        print(denormalised_threshold)
-
-        right = 0
-        for i in range(len(reconstruction_errors)):
-            if reconstruction_errors[i] >= denormalised_threshold and y_true[i]==1:
-                right = right+1
-            elif reconstruction_errors[i] < denormalised_threshold and y_true[i]==0:
-                right = right + 1
-        print("right" + str(right))
-        print("length" + str(len(reconstruction_errors)))
-        print("deo score:")
-        print(right/len(reconstruction_errors))
-
-        # get false positive/negative and 1 pe 1
-        false_positive = 0
-        false_negative = 0
-        true_positive = 0
-        denormalised_threshold = 170000
-        for i in range(len(reconstruction_errors)):
-            # false positive
-            if reconstruction_errors[i] >= denormalised_threshold and y_true[i]==0:
-                false_positive = false_positive+1
-            # false negative
-            elif reconstruction_errors[i] < denormalised_threshold and y_true[i]==1:
-                false_negative = false_negative + 1
-            # true positive
-            elif reconstruction_errors[i] >= denormalised_threshold and y_true[i]==1:
-                true_positive = true_positive + 1
-
-        print("false positive "+ str(false_positive) + "false negative "+str(false_negative) + "true postive "+ str(true_positive) )
-
-
-
-        histogram = dict()
-        norm_value = 150000
-        for ele in reconstruction_errors:
-            ele = ele - norm_value
-            if ele not in histogram and (ele >=0 and ele <=10000) :
-                histogram[ele] = 0
-            if ele >= 0 and ele <= 10000:
-                histogram[ele] = histogram[ele]+1
-        print("dictionary")
-        print(histogram)
-        # plt.hist(histogram)
-        plt.bar(histogram.keys(), histogram.values(), 1, color='g')
-
-        plt.show()
-
         
 
         
-        adj, features, labels = load_data(self.data_name)
-        print("adjacency")
-        print(adj.shape)
-        # print(adj)
+        # adj, features, labels = load_data(self.data_name)
+        # print("adjacency")
+        # print(adj.shape)
+        # # print(adj)
 
-        # graph G using networkx library
-        G = nx.Graph(adj)
+        # # graph G using networkx library
+        # G = nx.Graph(adj)
 
-        # store the subgraphs nodes and their corresponding anomaly metrics
-        subgraph_rank_list = []
+        # # store the subgraphs nodes and their corresponding anomaly metrics
+        # subgraph_rank_list = []
 
-        # iterate over all the possible subdue subgraphs of size 2
-        for sub_nodes in itertools.combinations(G.nodes(),2):
-            # sub_nodes = [1, 2]
-            subg = G.subgraph(sub_nodes)
-            # check if the subgraph is connected
-            if nx.is_connected(subg):
-                subgraph_nodes = subg.nodes
-                sum = 0
-                for nodes in subgraph_nodes:
-                    # take the sum of all the node errors present in the subgraph
-                    sum = sum + reconstruction_errors[nodes]
-                subgraph_rank_list.append((sum,subgraph_nodes))
-        subgraph_rank_list.sort()
+        # # iterate over all the possible subdue subgraphs of size 2
+        # for sub_nodes in itertools.combinations(G.nodes(),2):
+        #     # sub_nodes = [1, 2]
+        #     subg = G.subgraph(sub_nodes)
+        #     # check if the subgraph is connected
+        #     if nx.is_connected(subg):
+        #         subgraph_nodes = subg.nodes
+        #         sum = 0
+        #         for nodes in subgraph_nodes:
+        #             # take the sum of all the node errors present in the subgraph
+        #             sum = sum + reconstruction_errors[nodes]
+        #         subgraph_rank_list.append((sum,subgraph_nodes))
+        # subgraph_rank_list.sort()
 
-        # print the elements
-        for element in subgraph_rank_list:
-            print("elements")
-            print(element[0])
-            print(element[1])
+        # # print the elements
+        # for element in subgraph_rank_list:
+        #     print("elements")
+        #     print(element[0])
+        #     print(element[1])
 
 
                 

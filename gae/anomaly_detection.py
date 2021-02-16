@@ -90,8 +90,9 @@ class AnomalyDetectionRunner():
         y_true = [label[0] for label in feas['labels']]
 
         sess.close()
+        
+        scipy.io.savemat("./matfiles/"+"reconstruction_errors"+'.mat', mdict={'reconstruction_errors':reconstruction_errors})
 
-     
         sim_matrix = embeddings.dot(np.transpose(embeddings))
         adj, features, labels = load_data(self.data_name)
 

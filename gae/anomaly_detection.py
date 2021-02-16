@@ -16,15 +16,29 @@ import itertools
 import numpy as np
 import community as community_louvain
 from scipy import sparse
+import scipy.sparse as sp
+import scipy.io
 
 # Settings
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 import matplotlib.pyplot as plt
+from collections import Counter
+
 # import torch
 # import sklearn.metrics as metrics
 # import scikitplot as skplt
+
+import math
+
+def counter_cosine_similarity(c1, c2):
+    terms = set(c1).union(c2)
+    dotprod = sum(c1.get(k, 0) * c2.get(k, 0) for k in terms)
+    magA = math.sqrt(sum(c1.get(k, 0)**2 for k in terms))
+    magB = math.sqrt(sum(c2.get(k, 0)**2 for k in terms))
+    return dotprod / (magA * magB)
+
 class AnomalyDetectionRunner():
     def __init__(self, settings):
         self.data_name = settings['data_name']
@@ -66,10 +80,10 @@ class AnomalyDetectionRunner():
             # if epoch % 100 == 0:
             y_true = [label[0] for label in feas['labels']]
 
-            auc = roc_auc_score(y_true, reconstruction_errors)
+            # auc = roc_auc_score(y_true, reconstruction_errors)
 
-            print("ruc_auc")
-            print(auc)
+            # print("ruc_auc")
+            # print(auc)
             # print("ytrue")
             # print(y_true)
 
@@ -92,11 +106,11 @@ class AnomalyDetectionRunner():
         for i in range(len(labels)) :
             node_sizes.append( 0.1)
 
-        plt.clf()
-        G = nx.Graph(adj)
-        pos=nx.spring_layout(G)   #G is my graph
-        nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
-        plt.savefig("original.png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1) 
+        # plt.clf()
+        # G = nx.Graph(adj)
+        # pos=nx.spring_layout(G)   #G is my graph
+        # nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
+        # plt.savefig("original.png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1) 
 
 
         adj=adj.toarray()
@@ -171,10 +185,10 @@ class AnomalyDetectionRunner():
 
         #plot shrink graph
         # clearing the current plot 
-        plt.clf() 
-        G1 = nx.Graph(new_adj)
-        nx.draw(G1, with_labels = True) 
-        plt.savefig("shrink.png")
+        # plt.clf() 
+        # G1 = nx.Graph(new_adj)
+        # nx.draw(G1, with_labels = True) 
+        # plt.savefig("shrink.png")
 
         print("feature number: {}".format(feas['num_features']))
 
@@ -219,6 +233,13 @@ class AnomalyDetectionRunner():
         # print("plotting started..")
         # print("1 count")
         # print(y_true.count(1))
+         # Partition to Node mapping
+        partition_to_node = dict()
+        for node, partnum in partition.items():
+            if partnum not in partition_to_node:
+                partition_to_node[partnum]=[]
+            partition_to_node[partnum].append(node)
+
         num_count = 0
         mean = 0
         for num in reconstruction_errors:
@@ -228,13 +249,56 @@ class AnomalyDetectionRunner():
         
         mean = (mean/len(reconstruction_errors))
         # mean = 170000 
+
+        # mean = mean + mean/10
+
         false_count = 0
-        for num in reconstruction_errors:
+        predicted_subgraphs = []
+        for i in range(len(reconstruction_errors)):
+            num = reconstruction_errors[i]
             if num > mean:
                 num_count = num_count + 1
+                predicted_subgraphs.append(partition_to_node[i])
           
         print("Num count " + str(num_count))
+
+        print(predicted_subgraphs)
         
+        data = scipy.io.loadmat("facebook_labels.mat")
+        output_subgraphs = data["labels"]
+
+        # Evaluate metrics using output_subgraphs and predicted_subgraphs
+
+        accuracy = 0
+        output_subgraphs = output_subgraphs[0]
+
+        print(output_subgraphs)
+        print('--------------------')
+        for out in output_subgraphs:
+            max_similarity = 0
+            for pre in predicted_subgraphs:
+                l1 = list(out)
+                l1 = l1[0]
+                l2 = list(pre)
+                c1 = Counter(l1)
+                c2 = Counter(l2)
+                max_similarity = max(max_similarity,counter_cosine_similarity(c1,c2))
+            accuracy += max_similarity
+
+        for pre in predicted_subgraphs:
+            max_similarity = 0
+            for out in output_subgraphs:
+                l1 = list(out)
+                l1 = l1[0]
+                l2 = list(pre)
+                c1 = Counter(l1)
+                c2 = Counter(l2)
+                max_similarity = max(max_similarity,counter_cosine_similarity(c1,c2))
+            accuracy += max_similarity
+
+        accuracy /= (len(output_subgraphs)+len(predicted_subgraphs))
+
+        print(accuracy)
 
         # print("mean " + str(mean))
         # right = 0

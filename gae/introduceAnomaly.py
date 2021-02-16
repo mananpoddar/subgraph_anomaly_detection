@@ -15,8 +15,6 @@ class IntroduceAnomaly(object):
 
         num_nodes = len(self.adj)
     
-        print("num nodes")
-        print(num_nodes)
         self.nodes=[i for i in range(num_nodes)]
         self.anomalous_nodes=random.choices(self.nodes,k=300)
         self.anomalous_subgraph = []
@@ -31,6 +29,7 @@ class IntroduceAnomaly(object):
         adj = self.adj
         for i in range(15):
             clique=nodes[i*10:i*10+9]
+            print(type(clique))
             self.anomalous_subgraph.append(clique)
             for node1 in clique:
                 for node2 in clique:
@@ -86,11 +85,6 @@ class IntroduceAnomaly(object):
                 node_dist=0
                
                 for d in random_set:
-                    print("hell of the code")
-                    print(A[anomalous_node])
-                    print("kadf")
-                    print(A[d])
-                    print(d)
                     dist=np.linalg.norm( np.array(A[anomalous_node]) - np.array(A[d]) )
                     if dist>node_dist:
                         node_dist=dist
@@ -98,8 +92,10 @@ class IntroduceAnomaly(object):
                 A[i]=A[node_J]
 
             self.features = A
-
+            print(type(selected_nodes))
             self.anomalous_subgraph.append(selected_nodes)
+
+        print(self.anomalous_subgraph)
 
     def saveMat(self):
         temp=[0 for i in range(len(self.adj))]

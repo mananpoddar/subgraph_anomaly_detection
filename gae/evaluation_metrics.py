@@ -9,26 +9,118 @@ from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve
 
 
 class EvaluationMetrics(object):
-    def __init__(self, data_name, data_predicted, data_labels):
-        self.data_name = data_name
-        data = scipy.io.loadmat("matfiles/{}.mat".format(data_name))
-        self.adj = sp.lil_matrix(data["A"])
-        self.adj = self.adj.toarray()
-        data = scipy.io.loadmat("matfiles/{}.mat".format(data_labels))
-        self.output_subgraphs = data["labels"][0]
-        data = scipy.io.loadmat("matfiles/{}.mat".format(data_predicted))
-        self.predicted_subgraphs = data["predicted_subgraph"][0]
-        print(self.predicted_subgraphs)
-        print(self.output_subgraphs)
+    def __init__(self, output_subgraphs, predicted_subgraphs, adj):
+        self.predicted_subgraphs = predicted_subgraphs
+        self.output_subgraphs = output_subgraphs
+        self.adj = adj.toarray()
         (self.edges, self.predicted_edges, self.output_edges) = self.get_edge_list()
-        # print(self.edges)
-        # print(self.predicted_edges)
-        # print(self.output_edges)
+   
         output_edge_labels = self.get_edge_labels(self.edges, self.output_edges)
         predicted_edge_labels = self.get_edge_labels(self.edges, self.predicted_edges) 
         auc = roc_auc_score(output_edge_labels, predicted_edge_labels)
+        print("edge accuracy")
         print(auc)
+        print("node accuracy")
+        print(self.getNodeAccuracy())
 
+
+    def cosine_similarity(self):
+        a = 1
+    #     def counter_cosine_similarity(c1, c2):
+    # terms = set(c1).union(c2)
+    # dotprod = sum(c1.get(k, 0) * c2.get(k, 0) for k in terms)
+    # magA = math.sqrt(sum(c1.get(k, 0)**2 for k in terms))
+    # magB = math.sqrt(sum(c2.get(k, 0)**2 for k in terms))
+    # ans = dotprod / (magA * magB)
+    # return ans
+
+        # print(output_subgraphs)
+        # print('--------------------')
+        # for out in output_subgraphs:
+        #     max_similarity = -1
+        #     predicted_ans = []
+        #     for pre in predicted_subgraphs:
+        #         l1 = list(out)
+        #         l1 = l1[0]
+        #         l2 = list(pre)
+        #         c1 = Counter(l1)
+        #         c2 = Counter(l2)
+        #         # max_similarity = max(max_similarity,counter_cosine_similarity(c1,c2))
+        #         if max_similarity < counter_cosine_similarity(c1,c2) :
+        #             max_similarity = counter_cosine_similarity(c1,c2)
+        #             predicted_ans = l2
+        #     print("max similarity ")
+        #     print(max_similarity)
+        #     print(predicted_ans)
+        #     print(list(out)[0])
+
+            
+        #     accuracy += max_similarity
+
+        # for pre in predicted_subgraphs:
+        #     max_similarity = 0
+        #     for out in output_subgraphs:
+        #         l1 = list(out)
+        #         l1 = l1[0]
+        #         l2 = list(pre)
+        #         c1 = Counter(l1)
+        #         c2 = Counter(l2)
+        #         max_similarity = max(max_similarity,counter_cosine_similarity(c1,c2))
+        #     accuracy += max_similarity
+
+        # accuracy /= (len(output_subgraphs) +len(predicted_subgraphs))
+
+        # print(accuracy)
+
+
+
+    def get_edge_list(self):
+    	edge_list=[]
+    	predicted_edges=[]
+    	output_edges=[]
+    	for out in self.output_subgraphs:
+    		lis = list(out)[0]
+    		for i in lis:
+    			for j in lis:
+    				if (i != j) and ((i,j) not in edge_list) and self.adj[i][j]==1:
+    					edge_list.append((i,j))
+    					output_edges.append((i,j))
+
+    	for pre in self.predicted_subgraphs:
+    		lis = pre
+    		for i in lis:
+    			for j in lis:
+    				if (i != j) and ((i,j) not in edge_list) and self.adj[i][j]==1:
+    					edge_list.append((i,j))
+    					predicted_edges.append((i,j))
+    				elif (i != j) and ((i,j) not in predicted_edges) and self.adj[i][j]==1:
+    					predicted_edges.append((i,j))
+    	edge_list = []
+    	(r,c) = self.adj.shape
+    	for i in range(r):
+    		for j in range(c) :
+    			if self.adj[i][j]:
+    				edge_list.append((i,j))
+    	return (edge_list, predicted_edges, output_edges) 
+
+    def get_edge_labels(self, par_list, comp_list):
+    	labels=[]
+    	for edge in par_list:
+    		if edge in comp_list:
+    			labels.append(1)
+    		else:
+    			labels.append(0)
+        
+    	return labels
+
+    def addNodes(self, subgraphs) :
+        nodes = []
+        for subgraph in subgraphs :
+            for node in subgraph :
+                nodes.append(node)
+        return nodes
+
+    def getNodeAccuracy(self):
         predicted_nodes = []
         actual_nodes = []
         
@@ -39,8 +131,7 @@ class EvaluationMetrics(object):
             l1 = l1[0]
             output_list.append(l1)
         for pre in self.predicted_subgraphs:
-        	l1 = list(pre)
-        	l1 = l1[0]
+        	l1 = pre
         	predicted_list.append(l1)
          
         predicted_nodes = self.addNodes(predicted_list)
@@ -62,48 +153,5 @@ class EvaluationMetrics(object):
                 final_actual_nodes.append(0)
 
 
-        
         auc = roc_auc_score(final_actual_nodes, final_predicted_nodes)
-        print("final accuracy")
-        print(auc)
-
-    def get_edge_list(self):
-    	edge_list=[]
-    	predicted_edges=[]
-    	output_edges=[]
-    	for out in self.output_subgraphs:
-    		lis = list(out)[0]
-    		for i in lis:
-    			for j in lis:
-    				if (i != j) and ((i,j) not in edge_list) and self.adj[i][j]==1:
-    					edge_list.append((i,j))
-    					output_edges.append((i,j))
-
-    	for pre in self.predicted_subgraphs:
-    		lis = list(pre)[0]
-    		for i in lis:
-    			for j in lis:
-    				if (i != j) and ((i,j) not in edge_list) and self.adj[i][j]==1:
-    					edge_list.append((i,j))   
-    					predicted_edges.append((i,j))
-
-    	return (edge_list, predicted_edges, output_edges) 
-
-    def get_edge_labels(self, par_list, comp_list):
-    	labels=[]
-    	for edge in par_list:
-    		if edge in comp_list:
-    			labels.append(1)
-    		else:
-    			labels.append(0)
-    	return labels
-
-    def addNodes(self, subgraphs) :
-        nodes = []
-        for subgraph in subgraphs :
-            for node in subgraph :
-                nodes.append(node)
-        return nodes
-
-
-obj = EvaluationMetrics('facebook_anomaly','predicted_subgraph','facebook_labels')
+        return auc

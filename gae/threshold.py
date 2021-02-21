@@ -19,6 +19,7 @@ class Threshold(object):
     def optimumThreshold(self):
         distribution = self.distribution
         mean_of_distribution = self.meanDistribution()
+        return mean_of_distribution
         print(mean_of_distribution)
 
         otsu_distribution = [[1,2,3],[2,3,4]]

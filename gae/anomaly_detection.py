@@ -126,8 +126,11 @@ class AnomalyDetectionRunner():
         return partition, new_adj, new_features, new_labels 
 
     # adj is original graph adj, partition to node is the dictionary, partnum is the partition number 
+<<<<<<< HEAD
     
     
+=======
+>>>>>>> 7b58e67ccd3fd25f1f0edac79ba35a97edde6330
     def getAdjSubgraph(self, adj, partition_to_node, partnum):
         nodes = partition_to_node[partnum]
         G=nx.Graph()
@@ -173,6 +176,9 @@ class AnomalyDetectionRunner():
         model_str = self.model
         feas = format_data(self.data_name, None)
         self.saveGraphs(feas['adj'], "original")
+
+        #save original graph
+        # self.saveGraph(feas['adj'], "original")
     
         reconstruction_errors, reconstruct_loss, embeddings = self.runAutoEncoder(model_str,feas)
         partition, new_adj, new_features, new_labels = self.getCoarsenedGraph(embeddings)

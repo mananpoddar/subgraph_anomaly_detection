@@ -125,12 +125,6 @@ class AnomalyDetectionRunner():
 
         return partition, new_adj, new_features, new_labels 
 
-        G = nx.Graph(adj)
-        nx.draw(G, with_labels=True)
-        plt.show()
-        # plt.savefig(    def saveGraph(self, adj, name):
-"/assets/graphs/name"+".png", dpi=300, bbox_inches='tight')
-
 
     def erun(self):
         model_str = self.model

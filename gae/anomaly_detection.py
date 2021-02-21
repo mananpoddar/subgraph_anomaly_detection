@@ -125,26 +125,74 @@ class AnomalyDetectionRunner():
 
         return partition, new_adj, new_features, new_labels 
 
+    # adj is original graph adj, partition to node is the dictionary, partnum is the partition number 
+    
+    
+    def getAdjSubgraph(self, adj, partition_to_node, partnum):
+        nodes = partition_to_node[partnum]
+        G=nx.Graph()
+        for i in nodes:
+            for j in nodes:
+                if i==j :
+                    continue
+                if adj[i][j]==1:
+                    G.add_edge(i,j)
+        return G
+
+    def saveSubGraphs(self, adj, partition_to_node, num_nodes):
+         for i in range(num_nodes):
+            plt.clf() 
+            G1 = self.getAdjSubgraph(adj,partition_to_node, i)
+            nx.draw(G1, with_labels = True) 
+            plt.savefig("output/subGraphs/" + i + ".png")
+
+    def saveGraphs(self, adj, filename):
+        adj = adj.toarray();
+        (r,c) = adj.shape
+        if filename=="original":
+            #plot original graph
+            node_sizes = []
+            num_nodes = r
+            for i in range(num_nodes) :
+                node_sizes.append(0.1)
+
+            plt.clf()
+            G = nx.Graph(adj)
+            pos=nx.spring_layout(G)   #G is my graph
+            nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
+            plt.savefig("output/original.png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1)
+
+        if filename=="shrink":
+            plt.clf() 
+            G1 = nx.Graph(adj)
+            nx.draw(G1, with_labels = True) 
+            plt.savefig("output/shrink.png")
+
 
     def erun(self):
         model_str = self.model
         feas = format_data(self.data_name, None)
-
-        #save original graph
-        self.saveGraph(feas['adj'], "original")
+        self.saveGraphs(feas['adj'], "original")
     
         reconstruction_errors, reconstruct_loss, embeddings = self.runAutoEncoder(model_str,feas)
         partition, new_adj, new_features, new_labels = self.getCoarsenedGraph(embeddings)
         new_feas =  format_data(self.data_name, new_adj, new_features, new_labels)
 
-
-        reconstruction_errors, reconstruction_loss, embeddings = self.runAutoEncoder(model_str, new_feas)
+        self.saveGraphs(new_adj, "shrink")
 
         partition_to_node = dict()
         for node, partnum in partition.items():
             if partnum not in partition_to_node:
                 partition_to_node[partnum]=[]
             partition_to_node[partnum].append(node)
+
+        self.saveSubGraphs(feas['adj'], partition_to_node, new_adj.shape[0])
+
+        reconstruction_errors, reconstruction_loss, embeddings = self.runAutoEncoder(model_str, new_feas)
+
+
+
+
 
         for i in range(len(reconstruction_errors)) :
             reconstruction_errors[i] /= len(partition_to_node[i])

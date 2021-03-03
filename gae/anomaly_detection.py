@@ -93,7 +93,7 @@ class AnomalyDetectionRunner():
                 else :
                     sim_matrix[i][j]=0
 
-        partition = community_louvain.best_partition(G)
+        partition = community_louvain.best_partition(G, resolution = 0.04)
 
         nodes = max(partition.values())+1
         new_adj = np.zeros((nodes,nodes))
@@ -138,6 +138,22 @@ class AnomalyDetectionRunner():
                     G.add_edge(i,j)
         return G
 
+    def printPredictedSubgraphs(self, adj, partition_to_node, predicted_subgraphs):
+        print(partition_to_node, predicted_subgraphs)
+        for i in predicted_subgraphs:
+            node_sizes = []
+            for j in range(len(partition_to_node[i])) :
+                node_sizes.append(0.1)
+            print("graph number",i)
+            print("nodes in graph", partition_to_node[i])
+            plt.clf()
+            G = self.getAdjSubgraph(adj,partition_to_node, i)
+            pos=nx.spring_layout(G)
+            # print("nodes in subgraph", i, G.number_of_nodes())
+            nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
+            plt.savefig("output/predictedSubGraphs/" + str(i) + ".png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1)
+            
+
     def saveSubGraphs(self, adj, partition_to_node, num_nodes):
         
 
@@ -145,12 +161,13 @@ class AnomalyDetectionRunner():
             node_sizes = []
             for j in range(len(partition_to_node[i])) :
                 node_sizes.append(0.1)
-
+            
             plt.clf()
             G = self.getAdjSubgraph(adj,partition_to_node, i)
             pos=nx.spring_layout(G)
-            nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
-            plt.savefig("output/subGraphs/" + str(i) + ".png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1)
+            print("nodes in subgraph", i, G.number_of_nodes(), len(partition_to_node[i]))
+            # nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
+            # plt.savefig("output/subGraphs/" + str(i) + ".png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1)
 
 
     def saveGraphs(self, adj, filename):
@@ -170,21 +187,29 @@ class AnomalyDetectionRunner():
             plt.savefig("output/original.png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1)
 
         if filename=="shrink":
-            plt.clf() 
-            G1 = nx.Graph(adj)
-            nx.draw(G1, with_labels = True) 
-            plt.savefig("output/shrink.png")
+            node_sizes = []
+            num_nodes = r
+            for i in range(num_nodes) :
+                node_sizes.append(0.1)
+            plt.clf()
+            G = nx.Graph(adj)
+            pos=nx.spring_layout(G)   #G is my graph
+            nx.draw(G,pos,node_size = node_sizes, node_color='#A0CBE2',edge_color='#BB0000',width=0.1,edge_cmap=plt.cm.Blues,with_labels=False)
+            plt.savefig("output/shrink.png", dpi=1000, facecolor='w', edgecolor='w',orientation='portrait', papertype=None, format=None,transparent=False, bbox_inches=None, pad_inches=0.1)
+
 
 
     def erun(self):
         model_str = self.model
         feas = format_data(self.data_name, None)
+        print("nodes in original graphs",feas['adj'].shape[0])
         # self.saveGraphs(feas['adj'], "original")
     
         reconstruction_errors, reconstruct_loss, embeddings = self.runAutoEncoder(model_str,feas)
         partition, new_adj, new_features, new_labels = self.getCoarsenedGraph(embeddings)
         new_feas =  format_data(self.data_name, new_adj, new_features, new_labels)
 
+        # print("p",partition)
         # self.saveGraphs(new_adj, "shrink")
 
         partition_to_node = dict()
@@ -193,6 +218,9 @@ class AnomalyDetectionRunner():
                 partition_to_node[partnum]=[]
             partition_to_node[partnum].append(node)
 
+        # print("p2n", partition_to_node.keys())
+
+        
         self.saveSubGraphs(feas['adj'], partition_to_node, new_adj.shape[0])
 
         reconstruction_errors, reconstruction_loss, embeddings = self.runAutoEncoder(model_str, new_feas)
@@ -201,22 +229,30 @@ class AnomalyDetectionRunner():
 
 
 
-        for i in range(len(reconstruction_errors)) :
-            reconstruction_errors[i] /= len(partition_to_node[i])
+        # for i in range(len(reconstruction_errors)) :
+        #     reconstruction_errors[i] /= len(partition_to_node[i])
 
 
         threshold = Threshold(reconstruction_errors, 0)
         optimum_threshold = threshold.optimumThreshold()
 
+
+        anomalous_shrinked_nodes = []
         false_count = 0
         num_count = 0
         predicted_subgraphs = []
         for i in range(len(reconstruction_errors)):
             num = reconstruction_errors[i]
             if num > optimum_threshold:
+                anomalous_shrinked_nodes.append(i)
                 num_count = num_count + 1
                 predicted_subgraphs.append(partition_to_node[i])
-        
+
+        print("nodes in shrinked graphs",new_adj.shape[0])
+        print("number of subgraphs predicted as anomalous: ", len(predicted_subgraphs))
+        print("Anomalous subgraphs: ", predicted_subgraphs, num_count)
+        self.printPredictedSubgraphs(feas['adj'], partition_to_node, anomalous_shrinked_nodes)
+
         data = scipy.io.loadmat("./data/"+self.data_name+"_labels.mat")
 
         output_subgraphs = data["labels"]

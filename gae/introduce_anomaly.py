@@ -11,9 +11,11 @@ class IntroduceAnomaly(object):
         self.data_name = data_name
         adj, features, labels = load_data(self.data_name)
         self.adj = adj.toarray()
-        self.features = features
-
+        self.features = features    
+        self.labels = labels
         num_nodes = len(self.adj)
+        print("num nodes")
+        print(num_nodes)
         self.nodes=[i for i in range(num_nodes)]
         self.anomalous_nodes=random.choices(self.nodes,k=300)
         self.anomalous_subgraph = []
@@ -26,7 +28,7 @@ class IntroduceAnomaly(object):
     def addStructuralAnomaly(self):
         nodes = self.anomalous_nodes
         adj = self.adj
-        for i in range(15):
+        for i in range(4):
             clique=nodes[i*10:i*10+9]
             self.anomalous_subgraph.append(clique)
             for node1 in clique:
@@ -46,7 +48,7 @@ class IntroduceAnomaly(object):
                 node_list.append(i)
 
         A = csr_matrix.todense(self.features)
-        for k in range(15) :
+        for k in range(4) :
             i = random.choice(node_list)
             count = 0
             count = count + 1
@@ -94,11 +96,22 @@ class IntroduceAnomaly(object):
     def saveMat(self):
         temp=[0 for i in range(len(self.adj))]
         scipy.io.savemat("./data/"+ self.data_name +'_anomaly.mat', mdict={'X':self.features,'A':self.adj,'gnd':temp})
-        scipy.io.savemat("./data/"+ self.data_name +'_anomaly_labels.mat', mdict={'labels':self.anomalous_subgraph})
-    
+        scipy.io.savemat("./data/"+ self.data_name +'_anomaly_subgraph_labels.mat', mdict={'labels':self.anomalous_subgraph})
+        anomalous_nodes = [0] * len(self.adj)
+        if(self.data_name != "facebook"):
+            for subgraph in self.anomalous_subgraph :
+                for node in subgraph :
+                    anomalous_nodes[node] = 1
+            
+            for i in range(len(self.labels)):
+                if self.labels[i] :
+                    anomalous_nodes[i] = 1
+            
+            scipy.io.savemat("./data/"+ self.data_name +'_anomaly_node_labels.mat', mdict={'labels':anomalous_nodes})
 
  
-obj = IntroduceAnomaly("facebook")
+# obj = IntroduceAnomaly("facebook")
+obj = IntroduceAnomaly("Amazon")
 
 
 

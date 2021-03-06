@@ -93,7 +93,7 @@ class AnomalyDetectionRunner():
                 else :
                     sim_matrix[i][j]=0
 
-        partition = community_louvain.best_partition(G, resolution = 0.04)
+        partition = community_louvain.best_partition(G, resolution = 0.5)
 
         nodes = max(partition.values())+1
         new_adj = np.zeros((nodes,nodes))
@@ -266,11 +266,11 @@ class AnomalyDetectionRunner():
         #     reconstruction_errors[i] /= (len(partition_to_node[i])**(1./3)+1)
 
 
-        threshold = Threshold(reconstruction_errors, 10)
+        # threshold = Threshold(reconstruction_errors, 0)
 
         sorted_errors = sorted(reconstruction_errors)
 
-        index = int(0.95*len(reconstruction_errors))
+        index = int(0.90*len(reconstruction_errors))
 
         threshold = sorted_errors[index] 
 
@@ -306,7 +306,7 @@ class AnomalyDetectionRunner():
 
         print(len(set(predicted_node_numbers)))
 
-        data = scipy.io.loadmat("./data/"+self.data_name+"_labels.mat")
+        data = scipy.io.loadmat("./data/"+self.data_name+"_subgraph_labels.mat")
 
         output_subgraphs = data["labels"]
 

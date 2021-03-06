@@ -3,10 +3,11 @@ import cv2
 import numpy as np 
 
 class Threshold(object):
-    def __init__(self, distribution, aboveMean):
+    def __init__(self, distribution, method, percentage):
         self.distribution = distribution
         self.aboveMean = aboveMean
-
+        self.method = method
+        self.percentage = percentage
 
     def meanDistribution(self):
         distribution = self.distribution
@@ -15,12 +16,20 @@ class Threshold(object):
             sum = sum + element
         return (sum/len(distribution))
 
+    def topOfDistribution(self, percentage) :
+        sorted_errors = sorted(self.distribution)
+        index = int((percentage/100)*len(self.distribution))
+        threshold = sorted_errors[index] 
+        return threshold
 
     def optimumThreshold(self):
         distribution = self.distribution
-        mean_of_distribution = self.meanDistribution()
-        return mean_of_distribution
-        print(mean_of_distribution)
+        if self.method == "mean":
+            mean_of_distribution = self.meanDistribution()
+            return mean_of_distribution
+        else if self.method == "top":
+            threshold = self.topOfDistribution(self,self.percentage)
+            return threshold
 
         otsu_distribution = [[1,2,3],[2,3,4]]
 

@@ -172,6 +172,15 @@ class EvaluationMetrics(object):
             else :
                 final_actual_nodes.append(0)
 
+        final_actual_nodes = scipy.io.loadmat("./data/"+"Amazon_anomaly_node_labels.mat")
+        final_actual_nodes = final_actual_nodes['labels'][0]
+        print("actual")
+        for ele in final_actual_nodes:
+            print(ele)
+      
+        print(final_actual_nodes)
+        print("predicted")
+        print(final_predicted_nodes)
         tpc = 0
         fpc = 0
         for i in range(len(final_actual_nodes)):

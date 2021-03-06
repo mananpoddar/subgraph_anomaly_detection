@@ -27,8 +27,8 @@ seed = 7
 np.random.seed(seed)
 tf.set_random_seed(seed)
 
-data_list = ['facebook','BlogCatalog', 'Flickr', 'Amazon', 'Enron', 'Disney','facebook_anomaly']
-dataname = data_list[6]
+data_list = ['facebook','BlogCatalog', 'Flickr', 'Amazon', 'Enron', 'Disney','facebook_anomaly','Amazon_anomaly']
+dataname = data_list[7]
 model = 'gcn_ae'  # 'arga_ae' or 'arga_vae'
 task = 'anomaly_detection'
 settings = {'data_name': dataname, 'iterations' : FLAGS.iterations, 'model' : model}

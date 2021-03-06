@@ -18,8 +18,23 @@ class EvaluationMetrics(object):
         output_edge_labels = self.get_edge_labels(self.edges, self.output_edges)
         predicted_edge_labels = self.get_edge_labels(self.edges, self.predicted_edges) 
         auc = roc_auc_score(output_edge_labels, predicted_edge_labels)
+        tpc = 0
+        fpc = 0
+        for i in range(len(output_edge_labels)):
+            if predicted_edge_labels[i]:
+                if output_edge_labels[i]:
+                    tpc+=1
+                else:
+                    fpc+=1
+        print("True Positive Count"+str(tpc))
+        print("False Positive Count"+str(fpc))
         print("edge accuracy")
         print(auc)
+        fpr, tpr, thresholds = roc_curve(output_edge_labels, predicted_edge_labels)
+        print("Edge Values")
+        print("TPR"+str(tpr))
+        print("FPR"+str(fpr))
+        print('------------------------------------------------------------------------------')
         print("node accuracy")
         print(self.getNodeAccuracy())
 
@@ -152,6 +167,20 @@ class EvaluationMetrics(object):
             else :
                 final_actual_nodes.append(0)
 
+        tpc = 0
+        fpc = 0
+        for i in range(len(final_actual_nodes)):
+            if final_predicted_nodes[i]:
+                if final_actual_nodes[i]:
+                    tpc+=1
+                else:
+                    fpc+=1
+        print("True Positive Count"+str(tpc))
+        print("False Positive Count"+str(fpc))
 
         auc = roc_auc_score(final_actual_nodes, final_predicted_nodes)
+        fpr, tpr, thresholds = roc_curve(final_actual_nodes, final_predicted_nodes)
+        print("Node Values")
+        print("TPR"+str(tpr))
+        print("FPR"+str(fpr))
         return auc

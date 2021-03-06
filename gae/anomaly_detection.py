@@ -221,7 +221,7 @@ class AnomalyDetectionRunner():
         # print("p2n", partition_to_node.keys())
 
         
-        self.saveSubGraphs(feas['adj'], partition_to_node, new_adj.shape[0])
+        # self.saveSubGraphs(feas['adj'], partition_to_node, new_adj.shape[0])
 
         reconstruction_errors, reconstruction_loss, embeddings = self.runAutoEncoder(model_str, new_feas)
 
@@ -233,9 +233,17 @@ class AnomalyDetectionRunner():
         #     reconstruction_errors[i] /= len(partition_to_node[i])
 
 
-        threshold = Threshold(reconstruction_errors, 0)
-        optimum_threshold = threshold.optimumThreshold()
+        threshold = Threshold(reconstruction_errors, 10)
 
+        sorted_errors = sorted(reconstruction_errors)
+
+        index = int(0.95*len(reconstruction_errors))
+
+        threshold = sorted_errors[index] 
+
+        # optimum_threshold = threshold.optimumThreshold()
+
+        optimum_threshold = threshold
 
         anomalous_shrinked_nodes = []
         false_count = 0
@@ -251,7 +259,14 @@ class AnomalyDetectionRunner():
         print("nodes in shrinked graphs",new_adj.shape[0])
         print("number of subgraphs predicted as anomalous: ", len(predicted_subgraphs))
         print("Anomalous subgraphs: ", predicted_subgraphs, num_count)
-        self.printPredictedSubgraphs(feas['adj'], partition_to_node, anomalous_shrinked_nodes)
+        # self.printPredictedSubgraphs(feas['adj'], partition_to_node, anomalous_shrinked_nodes)
+
+        predicted_node_numbers = []
+
+        for p in predicted_subgraphs:
+            predicted_node_numbers+=p
+
+        print(len(set(predicted_node_numbers)))
 
         data = scipy.io.loadmat("./data/"+self.data_name+"_labels.mat")
 

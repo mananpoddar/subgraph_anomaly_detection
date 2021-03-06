@@ -325,6 +325,16 @@ class AnomalyDetectionRunner():
 
         print(output_dict)
 
+        output_df = pd.DataFrame()
+        if path.exists('./output/results.csv'):
+            output_df = pd.read_csv('./output/results.csv')
+
+        output_df = output_df.append(output_dict, ignore_index=True)
+        print(output_df.head())
+        # with open('employee_birthday.txt')
+        
+        output_df.to_csv('./output/results.csv')
+
         sorted_errors = np.argsort(-reconstruction_errors, axis=0)  
         with open('output/{}-ranking.txt'.format(self.data_name), 'w') as f:
             for index in sorted_errors:

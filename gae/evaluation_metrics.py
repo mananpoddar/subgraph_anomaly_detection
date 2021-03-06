@@ -36,6 +36,10 @@ class EvaluationMetrics(object):
         print("FPR"+str(fpr))
         print('------------------------------------------------------------------------------')
         print("node accuracy")
+        self.tpce = tpc
+        self.fpce = fpc
+        self.tpcn = self.fpcn = 0
+        self.actual_node_count = 0
         print(self.getNodeAccuracy())
 
 
@@ -164,6 +168,7 @@ class EvaluationMetrics(object):
 
             if i in actual_nodes :
                 final_actual_nodes.append(1)
+                self.actual_node_count+=1
             else :
                 final_actual_nodes.append(0)
 
@@ -177,6 +182,10 @@ class EvaluationMetrics(object):
                     fpc+=1
         print("True Positive Count"+str(tpc))
         print("False Positive Count"+str(fpc))
+
+        self.tpcn = tpc
+        self.fpcn = fpc
+
 
         auc = roc_auc_score(final_actual_nodes, final_predicted_nodes)
         fpr, tpr, thresholds = roc_curve(final_actual_nodes, final_predicted_nodes)

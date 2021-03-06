@@ -230,7 +230,7 @@ class AnomalyDetectionRunner():
 
 
         # for i in range(len(reconstruction_errors)) :
-        #     reconstruction_errors[i] /= len(partition_to_node[i])
+        #     reconstruction_errors[i] /= (len(partition_to_node[i])**(1./3)+1)
 
 
         threshold = Threshold(reconstruction_errors, 10)
@@ -276,7 +276,16 @@ class AnomalyDetectionRunner():
         output_subgraphs = output_subgraphs[0]
 
         evaluation_metrics = EvaluationMetrics(output_subgraphs, predicted_subgraphs, feas['adj'])
-        
+
+        output_dict = dict()
+        output_dict = {'Dataset':self.data_name,'Num Nodes Graph':feas['adj'].shape[0],'Num Nodes Shrink':new_adj.shape[0],'Predicted Shrink Count':len(predicted_subgraphs),'Predicted Graph Count':len(set(predicted_node_numbers))}
+        output_dict['Edge TPC'] = evaluation_metrics.tpce
+        output_dict['Edge FPC'] = evaluation_metrics.fpce
+        output_dict['Node TPC'] = evaluation_metrics.tpcn
+        output_dict['Node FPC'] = evaluation_metrics.fpcn
+        output_dict['Actual Graph Count'] = evaluation_metrics.actual_node_count
+
+        print(output_dict)
 
         sorted_errors = np.argsort(-reconstruction_errors, axis=0)  
         with open('output/{}-ranking.txt'.format(self.data_name), 'w') as f:

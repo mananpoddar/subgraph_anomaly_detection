@@ -5,6 +5,8 @@ import os
 # Train on CPU (hide GPU) due to memory constraints
 os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
+from os import path
+
 import tensorflow as tf
 from constructor import get_placeholder, get_model, get_optimizer, update
 import numpy as np
@@ -286,6 +288,16 @@ class AnomalyDetectionRunner():
         output_dict['Actual Graph Count'] = evaluation_metrics.actual_node_count
 
         print(output_dict)
+
+        output_df = pd.DataFrame()
+        if path.exists('./output/results.csv'):
+            output_df = pd.read_csv('./output/results.csv')
+
+        output_df = output_df.append(output_dict, ignore_index=True)
+        print(output_df.head())
+        # with open('employee_birthday.txt')
+        
+        output_df.to_csv('./output/results.csv')
 
         sorted_errors = np.argsort(-reconstruction_errors, axis=0)  
         with open('output/{}-ranking.txt'.format(self.data_name), 'w') as f:

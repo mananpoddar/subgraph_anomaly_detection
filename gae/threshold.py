@@ -5,7 +5,6 @@ import numpy as np
 class Threshold(object):
     def __init__(self, distribution, method, percentage):
         self.distribution = distribution
-        self.aboveMean = aboveMean
         self.method = method
         self.percentage = percentage
 
@@ -18,7 +17,7 @@ class Threshold(object):
 
     def topOfDistribution(self, percentage) :
         sorted_errors = sorted(self.distribution)
-        index = int((percentage/100)*len(self.distribution))
+        index = int((1-(percentage/100.0))*len(self.distribution))
         threshold = sorted_errors[index] 
         return threshold
 
@@ -26,9 +25,9 @@ class Threshold(object):
         distribution = self.distribution
         if self.method == "mean":
             mean_of_distribution = self.meanDistribution()
-            return mean_of_distribution
-        else if self.method == "top":
-            threshold = self.topOfDistribution(self,self.percentage)
+            return mean_of_distribution*(1+self.percentage/100)
+        elif self.method == "top":
+            threshold = self.topOfDistribution(self.percentage)
             return threshold
 
         otsu_distribution = [[1,2,3],[2,3,4]]

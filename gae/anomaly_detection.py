@@ -38,6 +38,7 @@ class AnomalyDetectionRunner():
         self.data_name = settings['data_name']
         self.iteration = settings['iterations']
         self.model = settings['model']
+        self.shrinking_factor = 0.01
 
 
     def normalise(self, value, low, high):
@@ -68,7 +69,7 @@ class AnomalyDetectionRunner():
         sess.close()
         return reconstruction_errors, reconstruction_loss, embeddings
 
-    def getCoarsenedGraph(self,embeddings):
+    def getCoarsenedGraph(self, embeddings):
         sim_matrix = embeddings.dot(np.transpose(embeddings))
         adj, features, labels = load_data(self.data_name)
 
@@ -95,7 +96,7 @@ class AnomalyDetectionRunner():
                 else :
                     sim_matrix[i][j]=0
 
-        partition = community_louvain.best_partition(G, resolution = 0.5)
+        partition = community_louvain.best_partition(G, resolution = self.shrinking_factor)
 
         nodes = max(partition.values())+1
         new_adj = np.zeros((nodes,nodes))
@@ -268,17 +269,20 @@ class AnomalyDetectionRunner():
         #     reconstruction_errors[i] /= (len(partition_to_node[i])**(1./3)+1)
 
 
-        # threshold = Threshold(reconstruction_errors, 0)
+        method = "mean"
+        percent = 0
 
-        sorted_errors = sorted(reconstruction_errors)
+        threshold = Threshold(reconstruction_errors, method, percent)
 
-        index = int(0.90*len(reconstruction_errors))
+        # sorted_errors = sorted(reconstruction_errors)
 
-        threshold = sorted_errors[index] 
+        # index = int(0.90*len(reconstruction_errors))
 
-        # optimum_threshold = threshold.optimumThreshold()
+        # threshold = sorted_errors[index] 
 
-        optimum_threshold = threshold
+        optimum_threshold = threshold.optimumThreshold()
+
+        # optimum_threshold = threshold
 
         anomalous_shrinked_nodes = []
         false_count = 0
@@ -297,18 +301,18 @@ class AnomalyDetectionRunner():
         print("Anomalous subgraphs: ", predicted_subgraphs, num_count)
         # self.printPredictedSubgraphs(feas['adj'], partition_to_node, anomalous_shrinked_nodes)
 
-        self.savePredictedGraph(new_adj, anomalous_shrinked_nodes, "shrink")
+        # self.savePredictedGraph(new_adj, anomalous_shrinked_nodes, "shrink")
 
         predicted_node_numbers = []
 
         for p in predicted_subgraphs:
             predicted_node_numbers+=p
 
-        self.savePredictedGraph(feas['adj'], predicted_node_numbers, "original")
+        # self.savePredictedGraph(feas['adj'], predicted_node_numbers, "original")
 
         print(len(set(predicted_node_numbers)))
 
-        data = scipy.io.loadmat("./data/"+self.data_name+"_subgraph_labels.mat")
+        data = scipy.io.loadmat("./data/"+self.data_name+"_labels.mat")
 
         output_subgraphs = data["labels"]
 
@@ -324,6 +328,11 @@ class AnomalyDetectionRunner():
         output_dict['Node TPC'] = evaluation_metrics.tpcn
         output_dict['Node FPC'] = evaluation_metrics.fpcn
         output_dict['Actual Graph Count'] = evaluation_metrics.actual_node_count
+        output_dict['Thresholding Method'] = method
+        output_dict['Percentage'] = percent
+        output_dict['Shrinking Factor'] = self.shrinking_factor
+        output_dict['Node Acc'] = evaluation_metrics.node_accuracy
+        output_dict['Edge Acc'] = evaluation_metrics.edge_accuracy
 
         print(output_dict)
 

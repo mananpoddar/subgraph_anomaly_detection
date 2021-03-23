@@ -38,7 +38,7 @@ class AnomalyDetectionRunner():
         self.data_name = settings['data_name']
         self.iteration = settings['iterations']
         self.model = settings['model']
-        self.shrinking_factor = 0.01
+        self.shrinking_factor = 0.05
 
 
     def normalise(self, value, low, high):
@@ -270,7 +270,7 @@ class AnomalyDetectionRunner():
 
 
         method = "mean"
-        percent = 0
+        percent = 10
 
         threshold = Threshold(reconstruction_errors, method, percent)
 
@@ -312,7 +312,7 @@ class AnomalyDetectionRunner():
 
         print(len(set(predicted_node_numbers)))
 
-        data = scipy.io.loadmat("./data/"+self.data_name+"_labels.mat")
+        data = scipy.io.loadmat("./data/"+self.data_name+"_subgraph_labels.mat")
 
         output_subgraphs = data["labels"]
 
